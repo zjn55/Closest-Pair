@@ -18,13 +18,13 @@
 4. 跨段区域：仅需在极点附近局部检查，即可找到跨段最小距离。
 5. 全覆盖：所有可能最近点对均被检查，结果严格正确。
 
-![算法分段示意图](https://via.placeholder.com/800x400?text=Closest+Pair+Monotone+Split)
-![极点跨段比较](https://via.placeholder.com/800x400?text=Extremum+Region+Check)
+![算法分段示意图](https://github.com/zjn55/Fastest-Closest-Pair/edit/main/image/单调分段证明.png)
+![极点跨段比较](https://github.com/zjn55/Fastest-Closest-Pair/edit/main/image/山峰山谷最小值证明.png)
 
 ## 时间复杂度
 - 排序：O(n log n)
 - 主体遍历：O(n)
-- 实际运行效率 **优于标准 O(n log n) 分治法**
+- 实际运行效率 
 - 实测速度
 
 ## 核心函数
