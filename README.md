@@ -142,6 +142,7 @@ float findClosestPair(vector<Point> points) {
     float minDist = 1e10;
     int n = points.size();
     if (n <= 1) return 0x7F800000;
+    if (n == 2) return points[0].getDist(points[1]);
 
     sort(points.begin(), points.end(), cmpx);
 
