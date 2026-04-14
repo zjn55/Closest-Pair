@@ -8,7 +8,7 @@
 3. 单调段内仅比较相邻点
 4. 极点附近做局部跨段比较
 5. 滑动窗口保证全局正确性
-6. 全程无递归，速度远超传统分治法
+6. 全程无递归，速度超过传统分治法
 7. 如果存在重复点可以在n次查找之内退出函数返回结果0
 
 ## 算法原理与正确性
@@ -33,10 +33,10 @@
 - `checkSegments()`：滑动窗口检查所有陡坡，保证正确性
 - `findClosestPair()`：算法主入口
 - 
-#### 运行环境 运行环境
-- 操作系统：Windows 操作系统：Windows
-- C++ 标准：C++11 及以上 C++ 标准：C++11 及以上
-- 编译器：MSVC 编译器：MSVC
+#### 运行环境 
+- 操作系统：Windows 
+- C++ 标准：C++11 及以上 
+- 编译器：MSVC 
 - **无任何第三方库依赖**
 
 ## 使用方法
@@ -72,10 +72,9 @@ struct Point {
 bool cmpx(const Point& a, const Point& b) {
     return a.x < b.x;
 }
-//寻找山峰山谷中最小值
-void extremum(const vector<Point>& points, int left, int sl, int sr, int right, float& minDist, bool isUpward) {
-	int j = sr;
-	for (int i = sl; i >= left; i--) {
+void extremum(const vector<Point>& points, int left, int mid, int right, float& minDist, bool isUpward) {
+	int j = mid + 1;
+	for (int i = mid - 1; i >= left; i--) {
 		if (j > right || points[i].x - points[j].x > minDist)
 			break;
 		minDist = min(minDist, points[i].getDist(points[j]));
@@ -86,7 +85,7 @@ void extremum(const vector<Point>& points, int left, int sl, int sr, int right, 
 		j++; i++;
 	}
 }
-// 滑动窗口检查所有陡坡
+// 滑动窗口全局检查（远距离分段剪枝）
 void checkSegments(const vector<Point>& points, const vector<int>& hill, float& minDist) {
 	int n = hill.size(), left, right, end;
 	for (int i = 0; i < n; i += 2) {
@@ -106,9 +105,9 @@ float findClosestPair(vector<Point> points) {
 	int n = points.size();
 	if (n <= 1) return 0x7F800000;
 	if (n == 2) return points[0].getDist(points[1]);
-	//x轴排序
+
 	sort(points.begin(), points.end(), cmpx);
-	//寻找极值点并计算每个坡最小值
+
 	bool isRising = points[0].y < points[1].y, isPeak = !isRising, nextFalling;
 	for (int i = 1; i < n - 1; i++) {
 		if (minDist > points[i].x - points[i - 1].x)
@@ -122,14 +121,13 @@ float findClosestPair(vector<Point> points) {
 	}
 	minDist = min(minDist, points[n - 1].getDist(points[n - 2]));
 	segIndex.push_back(n - 1);
-	//合并山坡
+
 	int segCount = segIndex.size();
 	for (int i = 2; i < segCount; i++) {
-		int peakPos = segIndex[i - 1];
 		bool flag = (i % 2) ? isPeak : !isPeak;
-		extremum(points, segIndex[i - 2], peakPos - 1, peakPos + 1, segIndex[i], minDist, flag);
+		extremum(points, segIndex[i - 2], segIndex[i - 1], segIndex[i], minDist, flag);
 	}
-	//寻找陡坡
+
 	vector<int>hill;
 	int num = 0, segi;
 	for (int i = 1; i < segCount - 1; i++) {
@@ -148,7 +146,6 @@ float findClosestPair(vector<Point> points) {
 		hill.push_back(segIndex[segCount - num - 2]);
 		hill.push_back(segIndex[segCount - 1]);
 	}
-	//检查陡坡
 	checkSegments(points, hill, minDist);
 
 	return minDist;
