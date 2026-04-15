@@ -8,8 +8,7 @@
 3. 单调段内仅比较相邻点
 4. 极点附近做局部跨段比较
 5. 滑动窗口保证全局正确性
-6. 全程无递归，速度超过传统分治法
-7. 如果存在重复点可以在n次查找之内退出函数返回结果0
+6. 如果存在重复点可以在n次查找之内退出函数返回结果0
 
 ## 算法原理与正确性
 1. 点按 x 坐标升序排列。 点按 x 坐标升序排列。
@@ -26,11 +25,9 @@
 - 分段 + 段内遍历 + 山峰山谷检查 + 寻找陡坡：O(n) 
 - 滑动窗口：O(n)~O(n^2) 
 - **整体复杂度：O(n log n)**
-- **实际运行效率：远优于标准分治法**
 
 ## 核心函数说明
 - `extremum()`：极点（峰值/谷值）附近跨段点对检查
-- `checkSegments()`：滑动窗口检查所有陡坡，保证正确性
 - `findClosestPair()`：算法主入口
 - 
 #### 运行环境 
@@ -72,7 +69,8 @@ struct Point {
 bool cmpx(const Point& a, const Point& b) {
     return a.x < b.x;
 }
-void extremum(const vector<Point>& points, int left, int mid, int right, float& minDist, bool isUpward) {
+// 极点（峰值/谷值）跨段检查
+void extremum(const vector<Point>& points, int left, int mid, int right, double& minDist, bool isUpward) {
 	int j = mid + 1;
 	for (int i = mid - 1; i >= left; i--) {
 		if (j > right || points[i].x - points[j].x > minDist)
@@ -85,23 +83,10 @@ void extremum(const vector<Point>& points, int left, int mid, int right, float& 
 		j++; i++;
 	}
 }
-// 滑动窗口全局检查（远距离分段剪枝）
-void checkSegments(const vector<Point>& points, const vector<int>& hill, float& minDist) {
-	int n = hill.size(), left, right, end;
-	for (int i = 0; i < n; i += 2) {
-		left = hill[i], end = hill[i + 1];
-		for (right = hill[i] + 1; right <= end; right++) {
-			while (points[right].x - points[left].x > minDist)left++;
-			for (int j = left; j < right; j++)
-				if (abs(points[j].y - points[right].y) < minDist)
-					minDist = min(minDist, points[right].getDist(points[j]));
-		}
-	}
-}
 // 主函数：极值分段法求最近点对
-float findClosestPair(vector<Point> points) {
+double findClosestPair(vector<Point> points) {
 	vector<int> segIndex(1, 0);
-	float minDist = 1e10;
+	double minDist = 1e10;
 	int n = points.size();
 	if (n <= 1) return 0x7F800000;
 	if (n == 2) return points[0].getDist(points[1]);
@@ -128,25 +113,21 @@ float findClosestPair(vector<Point> points) {
 		extremum(points, segIndex[i - 2], segIndex[i - 1], segIndex[i], minDist, flag);
 	}
 
-	vector<int>hill;
-	int num = 0, segi;
+	int num = 0, segi, left, right, end;
 	for (int i = 1; i < segCount - 1; i++) {
 		segi = segIndex[i];
-		if (points[segi + 1].x - points[segi].x < minDist)
-			num++;
-		else {
-			if (num >= 2) {
-				hill.push_back(segIndex[i - num - 1]);
-				hill.push_back(segi);
+		if ((points[segi + 1].x - points[segi].x > minDist || i == segCount - 2) && num >= 2) {
+			left = segIndex[i - num - 1], end = segi;
+			for (right = segIndex[i - num - 1]; right <= end; right++) {
+				while (points[right].x - points[left].x > minDist)left++;
+				for (int j = left; j < right; j++)
+					if (abs(points[j].y - points[right].y) < minDist)
+						minDist = min(minDist, points[right].getDist(points[j]));
 			}
 			num = 0;
 		}
+		else num++;
 	}
-	if (num >= 2) {
-		hill.push_back(segIndex[segCount - num - 2]);
-		hill.push_back(segIndex[segCount - 1]);
-	}
-	checkSegments(points, hill, minDist);
 
 	return minDist;
 }
