@@ -69,66 +69,92 @@ struct Point {
 bool cmpx(const Point& a, const Point& b) {
     return a.x < b.x;
 }
-// 极点（峰值/谷值）跨段检查
+// 极值点跨段检查 
 void extremum(const vector<Point>& points, int left, int mid, int right, double& minDist, bool isUpward) {
 	int j = mid + 1;
 	for (int i = mid - 1; i >= left; i--) {
-		if (j > right || points[i].x - points[j].x > minDist)
-			break;
+		if (j > right || points[i].x - points[j].x > minDist) break;
 		minDist = min(minDist, points[i].getDist(points[j]));
 		if (isUpward) {
 			if (points[i].y > points[j].y) continue;
 		}
-		else if (points[i].y < points[j].y) continue;
+		else {
+			if (points[i].y < points[j].y) continue;
+		}
 		j++; i++;
 	}
 }
-// 主函数：极值分段法求最近点对
+// 极值分段算法主函数
 double findClosestPair(vector<Point> points) {
-	vector<int> segIndex(1, 0);
-	double minDist = 1e10;
 	int n = points.size();
-	if (n <= 1) return 0x7F800000;
+	if (n <= 1) return numeric_limits<double>::infinity();
 	if (n == 2) return points[0].getDist(points[1]);
+	sort(points.begin(), points.end(), cmpxx);
+	// 极值点扫描，记录分段边界索引 segIndex,segX
+	vector<int> segIndex(1, 0);
+	vector<double> segX(n);
+	vector<Point> strip(n);
+	bool isRising = points[0].y < points[1].y, nextFalling;
+	bool isPeak = !isRising;
+	double minDist = 0x7FFF0000;
 
-	sort(points.begin(), points.end(), cmpx);
-
-	bool isRising = points[0].y < points[1].y, isPeak = !isRising, nextFalling;
 	for (int i = 1; i < n - 1; i++) {
-		if (minDist > points[i].x - points[i - 1].x)
-			minDist = min(minDist, points[i].getDist(points[i - 1]));
-		if (minDist == 0)return 0;
+		// 相邻点距离更新
+		double d = points[i].getDist(points[i - 1]);
+		if (d < minDist) minDist = d;
+		if (minDist == 0) return 0;
 		nextFalling = points[i].y > points[i + 1].y;
 		if (nextFalling == isRising) {
 			segIndex.push_back(i);
+			segX[segIndex.size() - 1] = points[i].x;
+			// 当有足够边界时，立即调用 extremum 检查以当前极值点为右边界的前一段
+			if (segIndex.size() >= 3) {
+				int k = segIndex.size() - 1;
+				bool flag = (k % 2) ? isPeak : !isPeak;
+				extremum(points, segIndex[k - 2], segIndex[k - 1], segIndex[k], minDist, flag);
+			}
 			isRising = !isRising;
 		}
 	}
-	minDist = min(minDist, points[n - 1].getDist(points[n - 2]));
+	// 最后一段
+	double dlast = points[n - 1].getDist(points[n - 2]);
+	if (dlast < minDist) minDist = dlast;
 	segIndex.push_back(n - 1);
-
+	segX[segIndex.size() - 1] = points[n - 1].x;
+	if (segIndex.size() >= 3) {
+		int k = segIndex.size() - 1;
+		bool flag = (k % 2) ? isPeak : !isPeak;
+		extremum(points, segIndex[k - 2], segIndex[k - 1], segIndex[k], minDist, flag);
+	}
+	//带状区域合并检查
 	int segCount = segIndex.size();
-	for (int i = 2; i < segCount; i++) {
-		bool flag = (i % 2) ? isPeak : !isPeak;
-		extremum(points, segIndex[i - 2], segIndex[i - 1], segIndex[i], minDist, flag);
-	}
+	for (int i = 2; i < segCount - 1; ) {
+		double midX = points[segIndex[i]].x;
+		int L = lower_bound(segX.begin(), segX.begin() + segCount, midX - minDist) - segX.begin();
+		int R = upper_bound(segX.begin(), segX.begin() + segCount, midX + minDist) - segX.begin() - 1;
+		L = max(0, min(L, segCount - 2));
+		R = max(0, min(R, segCount - 2));
 
-	int num = 0, segi, left, right, end;
-	for (int i = 1; i < segCount - 1; i++) {
-		segi = segIndex[i];
-		if ((points[segi + 1].x - points[segi].x > minDist || i == segCount - 2) && num >= 2) {
-			left = segIndex[i - num - 1], end = segi;
-			for (right = segIndex[i - num - 1]; right <= end; right++) {
-				while (points[right].x - points[left].x > minDist)left++;
-				for (int j = left; j < right; j++)
-					if (abs(points[j].y - points[right].y) < minDist)
-						minDist = min(minDist, points[right].getDist(points[j]));
+		if (L < i || R > i) {
+			int start = segIndex[L];
+			int end = segIndex[R + 1] - 1;
+			strip.clear();
+			for (int k = start; k <= end; k++)
+				strip.push_back(points[k]);
+			sort(strip.begin(), strip.end(), cmpy);
+			int sz = strip.size();
+			for (int a = 0; a < sz; a++) {
+				for (int b = a + 1; b < sz && strip[b].y - strip[a].y < minDist; b++) {
+					double d = strip[a].getDist(strip[b]);
+					if (d < minDist) minDist = d;
+				}
 			}
-			num = 0;
 		}
-		else num++;
+		// 跳步逻辑，减少无效比较
+		if (R <= i + 2) i += 2;
+		else i = (R % 2 == 0) ? R : R - 1;
+		if (i >= segCount - 1) break;
 	}
-
 	return minDist;
 }
 
