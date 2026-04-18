@@ -47,95 +47,98 @@ using namespace std;
 using namespace chrono;
 
 struct Point {
-    float x, y;
+    double x, y;
 
-    void setXY(float x_, float y_) {
+    void setXY(double x_, double y_) {
         x = x_;
         y = y_;
     }
 
-    float getDist(const Point& other) const {
-        float dx = x - other.x;
-        float dy = y - other.y;
+    double getDist(const Point& other) const {
+        double dx = x - other.x;
+        double dy = y - other.y;
         return sqrt(dx * dx + dy * dy);
     }
 };
 
 bool cmpx(const Point& a, const Point& b) {
-    return a.x < b.x;
+    return a.x==b.x ? a.y < b.y:a.x < b.x;
 }
-// 极值点跨段检查 
-void extremum(const vector<Point>& points, int left, int mid, int right, double& minDist, bool isUpward) {
+//极值点跨段检查 
+void extremum(const vector<Point>& points, int left, int mid, int right, double& minDist, bool isPeak) {
 	int j = mid + 1;
 	for (int i = mid - 1; i >= left; i--) {
-		if (j > right || points[i].x - points[j].x > minDist) break;
+		if (j > right || points[i].x - points[j].x > minDist) break;//x坐标相差太大了，不需要比较后面的了
 		minDist = min(minDist, points[i].getDist(points[j]));
-		if (isUpward) {
-			if (points[i].y > points[j].y) continue;
-		}
-		else {
-			if (points[i].y < points[j].y) continue;
-		}
-		j++; i++;
+		if (isPeak) { if (points[i].y > points[j].y) continue; }
+		else { if (points[i].y < points[j].y) continue; }
+		j++; i++;//i不加的话，下一次循环进行就自动加减一了
 	}
 }
 // 极值分段算法主函数
 double findClosestPair(vector<Point> points) {
+	//如果点数目很小，直接计算返回结果，不需要复杂的处理；
 	int n = points.size();
 	if (n <= 1) return numeric_limits<double>::infinity();
 	if (n == 2) return points[0].getDist(points[1]);
-	sort(points.begin(), points.end(), cmpxx);
-	// 极值点扫描，记录分段边界索引 segIndex,segX
-	vector<int> segIndex(1, 0);
-	vector<double> segX(n);
-	vector<Point> strip(n);
-	bool isRising = points[0].y < points[1].y, nextFalling;
-	bool isPeak = !isRising;
-	double minDist = 0x7FFF0000;
-
+	//按照x进行排序，形成天然的单调段，同时方便从左到右进行线性处理；
+	// 数组的左右边界的点也算极值点，其中左边界的点算是第0个极值点；
+	//对于每个单调段，我们以其最左边的极值点在整个数组里面是第几个作为他的编号；
+	sort(points.begin(), points.end(), cmpx);
+	vector<int> segIndex(1, 0);//用来保存每一个极值点在整个数组中的下标，数组左边界就是极值点，所以初始数据为0
+	vector<double> segX(n);//用来保存对应极值点的x坐标
+	segX[0] = points[0].x;
+	vector<Point> strip(n);//中间带检查的数据存放数组，方便排序，提前分配后面的中间带检查所需要的空间，减少内存开销
+	bool isBigThanLeft = points[0].y < points[1].y;//这个点比左边的点y坐标还要大吗？
+	bool isBigThanRight;//这个点比他右边的点还要大吗？
+	bool isPeak = isBigThanLeft;//编号为0的单调段是下降的还是上升的？
+	double minDist = 0x7FFF0000;//最小值
+	//寻找极值点并且顺便进行单调区间的检查和初步的合并
 	for (int i = 1; i < n - 1; i++) {
 		// 相邻点距离更新
 		double d = points[i].getDist(points[i - 1]);
 		if (d < minDist) minDist = d;
-		if (minDist == 0) return 0;
-		nextFalling = points[i].y > points[i + 1].y;
-		if (nextFalling == isRising) {
-			segIndex.push_back(i);
-			segX[segIndex.size() - 1] = points[i].x;
+		if (minDist == 0) return 0;//如果有重复点，直接退出，返回值为0
+		isBigThanRight = points[i].y > points[i + 1].y;
+		if (isBigThanLeft == isBigThanRight) {//如果一个点不大于两边的点或者不小于两边的点，那么他就是一个极值点
+			segIndex.push_back(i);//记录极值点在所有点集中的下标，同时这样子极值点在segIndex对应的下标就是极值点的编号
+			segX[segIndex.size() - 1] = points[i].x;//记录极值点的x坐标
 			// 当有足够边界时，立即调用 extremum 检查以当前极值点为右边界的前一段
 			if (segIndex.size() >= 3) {
-				int k = segIndex.size() - 1;
-				bool flag = (k % 2) ? isPeak : !isPeak;
+				int k = segIndex.size() - 1;           //告诉extremum函数这个是山峰还是山谷
+				bool flag = (k % 2) ? !isPeak : isPeak;//如果是偶数下标，说明他与第一个单调段相同的趋势
 				extremum(points, segIndex[k - 2], segIndex[k - 1], segIndex[k], minDist, flag);
 			}
-			isRising = !isRising;
+			isBigThanLeft = !isBigThanLeft;
 		}
 	}
-	// 最后一段
-	double dlast = points[n - 1].getDist(points[n - 2]);
-	if (dlast < minDist) minDist = dlast;
+	// 因为我们的循环到n-1就结束了，还有最后一个点要处理
+	double d = points[n - 1].getDist(points[n - 2]);
+	if (d < minDist) minDist = d;
 	segIndex.push_back(n - 1);
 	segX[segIndex.size() - 1] = points[n - 1].x;
 	if (segIndex.size() >= 3) {
 		int k = segIndex.size() - 1;
-		bool flag = (k % 2) ? isPeak : !isPeak;
+		bool flag = (k % 2) ? !isPeak : isPeak;
 		extremum(points, segIndex[k - 2], segIndex[k - 1], segIndex[k], minDist, flag);
 	}
 	//带状区域合并检查
 	int segCount = segIndex.size();
 	for (int i = 2; i < segCount - 1; ) {
-		double midX = points[segIndex[i]].x;
-		int L = lower_bound(segX.begin(), segX.begin() + segCount, midX - minDist) - segX.begin();
+		//偶数下标的极值点都是合并的时候的合并位置，所以要以他们作为中间带的标准进行划分中间带
+		double midX = segX[i];
+		int L = lower_bound(segX.begin(), segX.begin() + segCount, midX - minDist) - segX.begin() - 1;
 		int R = upper_bound(segX.begin(), segX.begin() + segCount, midX + minDist) - segX.begin() - 1;
-		L = max(0, min(L, segCount - 2));
-		R = max(0, min(R, segCount - 2));
+		L = max(0, min(L, segCount - 1));//防止越界
+		R = min(R, segCount - 2);//防止越界
 
-		if (L < i || R > i) {
+		if (L < i - 1 || R > i) {//如果中间带在同一个山峰或者山谷里面，直接跳过，不需要处理
 			int start = segIndex[L];
-			int end = segIndex[R + 1] - 1;
+			int end = segIndex[R + 1];
 			strip.clear();
 			for (int k = start; k <= end; k++)
-				strip.push_back(points[k]);
+				strip.emplace_back(points[k]);//不使用push_back，提高性能
+			//下面的逻辑与标准分治法一样
 			sort(strip.begin(), strip.end(), cmpy);
 			int sz = strip.size();
 			for (int a = 0; a < sz; a++) {
@@ -145,10 +148,9 @@ double findClosestPair(vector<Point> points) {
 				}
 			}
 		}
-		// 跳步逻辑，减少无效比较
+		//跳步逻辑，减少无效比较
 		if (R <= i + 2) i += 2;
-		else i = (R % 2 == 0) ? R : R - 1;
-		if (i >= segCount - 1) break;
+		else i = (R % 2 == 0) ? R : R - 1;//保证是i指向的是合并的位置，也就是偶数下标
 	}
 	return minDist;
 }
