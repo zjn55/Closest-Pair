@@ -100,6 +100,7 @@ double findClosestPair(vector<Point> points) {
 		if (d < minDist) minDist = d;
 		if (minDist == 0) return 0;//如果有重复点，直接退出，返回值为0
 		isBigThanRight = points[i].y > points[i + 1].y;
+		isBigThanLeft = points[i].y > points[i - 1].y;
 		if (isBigThanLeft == isBigThanRight) {//如果一个点不大于两边的点或者不小于两边的点，那么他就是一个极值点
 			segIndex.push_back(i);//记录极值点在所有点集中的下标，同时这样子极值点在segIndex对应的下标就是极值点的编号
 			segX[segIndex.size() - 1] = points[i].x;//记录极值点的x坐标
@@ -109,7 +110,6 @@ double findClosestPair(vector<Point> points) {
 				bool flag = (k % 2) ? !isPeak : isPeak;//如果是偶数下标，说明他与第一个单调段相同的趋势
 				extremum(points, segIndex[k - 2], segIndex[k - 1], segIndex[k], minDist, flag);
 			}
-			isBigThanLeft = !isBigThanLeft;
 		}
 	}
 	// 因为我们的循环到n-1就结束了，还有最后一个点要处理
