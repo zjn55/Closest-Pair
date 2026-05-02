@@ -42,6 +42,7 @@
 #include <cmath>
 #include <chrono>
 #include <random>
+#include <limits>
 
 using namespace std;
 using namespace chrono;
@@ -64,6 +65,11 @@ struct Point {
 bool cmpx(const Point& a, const Point& b) {
     return a.x==b.x ? a.y < b.y:a.x < b.x;
 }
+
+bool cmpy(const Point& a, const Point& b) {
+    return a.y < b.y;
+}
+
 //极值点跨段检查 
 void extremum(const vector<Point>& points, int left, int mid, int right, double& minDist, bool isPeak) {
 	int j = mid + 1;
@@ -156,11 +162,11 @@ double findClosestPair(vector<Point> points) {
 }
 
 mt19937 engine(high_resolution_clock::now().time_since_epoch().count());
-uniform_real_distribution<float> dis(0, 1000000);
+uniform_real_distribution<double> dis(0, 1000000);
 
 int main() {
     int n;
-    float minDist;
+    double minDist;
 
     cout << "请输入点的数量：";
     cin >> n;
